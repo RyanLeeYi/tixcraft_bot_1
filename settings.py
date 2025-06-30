@@ -409,7 +409,6 @@ def load_translate():
     zh_cn["autofill"] = '自动填表单'
     zh_cn["runtime"] = '运行'
     zh_cn["about"] = '关于'
-    zh_cn["copy"] = '复制'
 
     zh_cn["run"] = '抢票'
     zh_cn["save"] = '存档'
@@ -703,11 +702,16 @@ def load_json():
     config_dict = None
     if os.path.isfile(config_filepath):
         try:
-            with open(config_filepath) as json_data:
+            with open(config_filepath, encoding='utf-8') as json_data:
                 config_dict = json.load(json_data)
+                print(f"Successfully loaded config from: {config_filepath}")
         except Exception as e:
-            pass
+            print(f"Error loading JSON config from {config_filepath}: {e}")
+            print("Falling back to default config...")
+            config_dict = get_default_config()
     else:
+        print(f"Config file not found: {config_filepath}")
+        print("Using default config...")
         config_dict = get_default_config()
     return config_filepath, config_dict
 
@@ -1099,7 +1103,11 @@ def btn_save_act(slience_mode=False):
             if not file_to_save is None:
                 if len(file_to_save) > 0:
                     print("save as to:", file_to_save)
-                    util.save_json(config_dict, file_to_save)
+                    # PS: prevent json parsing error.
+                    # https://stackoverflow.com/questions/18337407/saving-utf-8-texts-in-json-dumps-as-utf8-not-as-u-escape-sequence
+                    with open(file_to_save, "w", encoding='utf-8') as outfile:
+                        json.dump(config_dict, outfile, indent=4, ensure_ascii=False)
+
         else:
             # slience
             util.save_json(config_dict, config_filepath)
@@ -1308,12 +1316,12 @@ def applyNewLanguage():
 
     global chk_headless
     global chk_verbose
+    global chk_auto_guess_options
     global lbl_remote_url
     global lbl_server_url
     global lbl_online_dictionary_preview
     global lbl_question
     global lbl_answer
-    global chk_auto_guess_options
 
     global tabControl
 
@@ -1472,9 +1480,6 @@ def applyNewLanguage():
     #lbl_kktix_password.config(text=translate[language_code]["kktix_password"])
     #lbl_cityline_password.config(text=translate[language_code]["cityline_password"])
     #lbl_urbtix_password.config(text=translate[language_code]["urbtix_password"])
-    #lbl_hkticketing_password.config(text=translate[language_code]["hkticketing_password"])
-    #lbl_kham_password.config(text=translate[language_code]["kham_password"])
-    #lbl_ticket_password.config(text=translate[language_code]["ticket_password"])
     #lbl_ticketplus_password.config(text=translate[language_code]["ticketplus_password"])
 
     lbl_save_password_alert.config(text=translate[language_code]["save_password_alert"])
@@ -2578,35 +2583,65 @@ def AutofillTab(root, config_dict, language_code, UI_PADDING_X):
 
 
 def change_maxbot_status_by_keyword():
-    config_filepath, config_dict = load_json()
+    try:
+        config_filepath, config_dict = load_json()
+        
+        # 檢查 config_dict 是否為 None，避免 NoneType 錯誤
+        if config_dict is None:
+            print("Warning: Failed to load config file in change_maxbot_status_by_keyword()")
+            return
 
-    system_clock_data = datetime.now()
-    current_time = system_clock_data.strftime('%H:%M:%S')
-    #print('Current Time is:', current_time)
-    if len(config_dict["advanced"]["idle_keyword"]) > 0:
-        is_matched =  util.is_text_match_keyword(config_dict["advanced"]["idle_keyword"], current_time)
-        if is_matched:
-            #print("match to idle:", current_time)
-            do_maxbot_idle()
-    if len(config_dict["advanced"]["resume_keyword"]) > 0:
-        is_matched =  util.is_text_match_keyword(config_dict["advanced"]["resume_keyword"], current_time)
-        if is_matched:
-            #print("match to resume:", current_time)
-            do_maxbot_resume()
-    
-    current_time = system_clock_data.strftime('%S')
-    if len(config_dict["advanced"]["idle_keyword_second"]) > 0:
-        is_matched =  util.is_text_match_keyword(config_dict["advanced"]["idle_keyword_second"], current_time)
-        if is_matched:
-            #print("match to idle:", current_time)
-            do_maxbot_idle()
-    if len(config_dict["advanced"]["resume_keyword_second"]) > 0:
-        is_matched =  util.is_text_match_keyword(config_dict["advanced"]["resume_keyword_second"], current_time)
-        if is_matched:
-            #print("match to resume:", current_time)
-            do_maxbot_resume()
+        system_clock_data = datetime.now()
+        current_time = system_clock_data.strftime('%H:%M:%S')
+        #print('Current Time is:', current_time)
+        
+        # 添加額外的安全檢查
+        try:
+            if config_dict.get("advanced", {}).get("idle_keyword", ""):
+                if len(config_dict["advanced"]["idle_keyword"]) > 0:
+                    is_matched =  util.is_text_match_keyword(config_dict["advanced"]["idle_keyword"], current_time)
+                    if is_matched:
+                        #print("match to idle:", current_time)
+                        do_maxbot_idle()
+        except (KeyError, TypeError, AttributeError) as e:
+            print(f"Warning: Error accessing idle_keyword: {e}")
+            
+        try:
+            if config_dict.get("advanced", {}).get("resume_keyword", ""):
+                if len(config_dict["advanced"]["resume_keyword"]) > 0:
+                    is_matched =  util.is_text_match_keyword(config_dict["advanced"]["resume_keyword"], current_time)
+                    if is_matched:
+                        #print("match to resume:", current_time)
+                        do_maxbot_resume()
+        except (KeyError, TypeError, AttributeError) as e:
+            print(f"Warning: Error accessing resume_keyword: {e}")
+        
+        current_time = system_clock_data.strftime('%S')
+        try:
+            if config_dict.get("advanced", {}).get("idle_keyword_second", ""):
+                if len(config_dict["advanced"]["idle_keyword_second"]) > 0:
+                    is_matched =  util.is_text_match_keyword(config_dict["advanced"]["idle_keyword_second"], current_time)
+                    if is_matched:
+                        #print("match to idle:", current_time)
+                        do_maxbot_idle()
+        except (KeyError, TypeError, AttributeError) as e:
+            print(f"Warning: Error accessing idle_keyword_second: {e}")
+            
+        try:
+            if config_dict.get("advanced", {}).get("resume_keyword_second", ""):
+                if len(config_dict["advanced"]["resume_keyword_second"]) > 0:
+                    is_matched =  util.is_text_match_keyword(config_dict["advanced"]["resume_keyword_second"], current_time)
+                    if is_matched:
+                        #print("match to resume:", current_time)
+                        do_maxbot_resume()
+        except (KeyError, TypeError, AttributeError) as e:
+            print(f"Warning: Error accessing resume_keyword_second: {e}")
 
-    check_maxbot_config_unsaved(config_dict)
+        check_maxbot_config_unsaved(config_dict)
+        
+    except Exception as e:
+        print(f"Error in change_maxbot_status_by_keyword: {e}")
+        # Don't re-raise the exception to prevent crashes
 
 def check_maxbot_config_unsaved(config_dict):
     # alert not saved config.
@@ -2778,8 +2813,8 @@ def sync_status_to_extension(status):
         status_json["status"]=status
         #print("dump json to path:", target_path)
         try:
-            with open(target_path, 'w') as outfile:
-                json.dump(status_json, outfile)
+            with open(target_path, 'w', encoding='utf-8') as outfile:
+                json.dump(status_json, outfile, ensure_ascii=False)
         except Exception as e:
             pass
 

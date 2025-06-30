@@ -142,11 +142,7 @@ def is_text_match_keyword(keyword_string, text):
     is_match_keyword = True
     if len(keyword_string) > 0 and len(text) > 0:
         is_match_keyword = False
-        keyword_array = []
-        try:
-            keyword_array = json.loads("["+ keyword_string +"]")
-        except Exception as exc:
-            keyword_array = []
+        keyword_array = parse_keyword_string_to_array(keyword_string)
         for item_list in keyword_array:
             if len(item_list) > 0:
                 if ' ' in item_list:
@@ -169,7 +165,7 @@ def is_text_match_keyword(keyword_string, text):
 def save_json(config_dict, target_path):
     json_str = json.dumps(config_dict, indent=4)
     try:
-        with open(target_path, 'w') as outfile:
+        with open(target_path, 'w', encoding='utf-8') as outfile:
             outfile.write(json_str)
     except Exception as e:
         pass
@@ -459,7 +455,7 @@ def dump_settings_to_maxbot_plus_extension(ext, config_dict, CONST_MAXBOT_CONFIG
             pass
 
     try:
-        with open(target_path, 'w') as outfile:
+        with open(target_path, 'w', encoding='utf-8') as outfile:
             json.dump(config_dict, outfile)
     except Exception as e:
         pass
@@ -471,7 +467,7 @@ def dump_settings_to_maxbot_plus_extension(ext, config_dict, CONST_MAXBOT_CONFIG
     manifest_dict = None
     if os.path.isfile(target_path):
         try:
-            with open(target_path) as json_data:
+            with open(target_path, 'r', encoding='utf-8') as json_data:
                 manifest_dict = json.load(json_data)
         except Exception as e:
             pass
@@ -480,12 +476,15 @@ def dump_settings_to_maxbot_plus_extension(ext, config_dict, CONST_MAXBOT_CONFIG
     local_remote_url = config_dict["advanced"]["remote_url"]
     if len(local_remote_url) > 0:
         try:
-            temp_remote_url_array = json.loads("["+ local_remote_url +"]")
+            # 安全的方式：使用 json.dumps 来正确转义字符串
+            temp_remote_url_array = json.loads("[" + json.dumps(local_remote_url) + "]")
             for remote_url in temp_remote_url_array:
                 remote_url_final = remote_url + "*"
                 local_remote_url_array.append(remote_url_final)
         except Exception as exc:
-            pass
+            # 如果失败，直接使用原字符串
+            if local_remote_url:
+                local_remote_url_array.append(local_remote_url + "*")
 
     if len(local_remote_url_array) > 0:
         is_manifest_changed = False
@@ -499,7 +498,7 @@ def dump_settings_to_maxbot_plus_extension(ext, config_dict, CONST_MAXBOT_CONFIG
         if is_manifest_changed:
             json_str = json.dumps(manifest_dict, indent=4)
             try:
-                with open(target_path, 'w') as outfile:
+                with open(target_path, 'w', encoding='utf-8') as outfile:
                     outfile.write(json_str)
             except Exception as e:
                 pass
@@ -522,7 +521,7 @@ def dump_settings_to_maxblock_plus_extension(ext, config_dict, CONST_MAXBOT_CONF
             pass
 
     try:
-        with open(target_path, 'w') as outfile:
+        with open(target_path, 'w', encoding='utf-8') as outfile:
             config_dict["domain_filter"]=CONST_MAXBLOCK_EXTENSION_FILTER
             json.dump(config_dict, outfile)
     except Exception as e:
@@ -1244,7 +1243,9 @@ def get_matched_blocks_by_keyword_item_set(config_dict, auto_select_mode, keywor
                 is_match_all = True
                 for keyword_item in keyword_item_array:
                     keyword_item = format_keyword_string(keyword_item)
+                    print("keyword_item:", keyword_item)
                     if not keyword_item in row_text:
+                        print("is_match_all:", "False")
                         is_match_all = False
             else:
                 exclude_item = format_keyword_string(keyword_item_set)
@@ -1285,11 +1286,7 @@ def get_target_item_from_matched_list(matched_blocks, auto_select_mode):
 
 
 def get_matched_blocks_by_keyword(config_dict, auto_select_mode, keyword_string, formated_area_list):
-    keyword_array = []
-    try:
-        keyword_array = json.loads("["+ keyword_string +"]")
-    except Exception as exc:
-        keyword_array = []
+    keyword_array = parse_keyword_string_to_array(keyword_string)
 
     matched_blocks = []
     for keyword_item_set in keyword_array:
@@ -1306,11 +1303,7 @@ def is_row_match_keyword(keyword_string, row_text):
     is_match_keyword = True
     if len(keyword_string) > 0 and len(row_text) > 0:
         is_match_keyword = False
-        keyword_array = []
-        try:
-            keyword_array = json.loads("["+ keyword_string +"]")
-        except Exception as exc:
-            keyword_array = []
+        keyword_array = parse_keyword_string_to_array(keyword_string)
         for item_list in keyword_array:
             if len(item_list) > 0:
                 if ' ' in item_list:
@@ -1391,15 +1384,17 @@ def get_answer_list_from_user_guess_string(config_dict, CONST_MAXBOT_ANSWER_ONLI
     if len(user_guess_string) > 0:
         user_guess_string = format_config_keyword_for_json(user_guess_string)
         try:
-            local_array = json.loads("["+ user_guess_string +"]")
+            # 安全的方式：使用 json.dumps 来正确转义字符串
+            local_array = json.loads("[" + json.dumps(user_guess_string) + "]")
         except Exception as exc:
-            local_array = []
+            # 如果失败，直接构建数组
+            local_array = [user_guess_string] if user_guess_string else []
 
     # load from internet.
     user_guess_string = ""
     if os.path.exists(CONST_MAXBOT_ANSWER_ONLINE_FILE):
         try:
-            with open(CONST_MAXBOT_ANSWER_ONLINE_FILE, "r") as text_file:
+            with open(CONST_MAXBOT_ANSWER_ONLINE_FILE, "r", encoding='utf-8') as text_file:
                 user_guess_string = text_file.readline()
         except Exception as e:
             pass
@@ -1407,9 +1402,11 @@ def get_answer_list_from_user_guess_string(config_dict, CONST_MAXBOT_ANSWER_ONLI
     if len(user_guess_string) > 0:
         user_guess_string = format_config_keyword_for_json(user_guess_string)
         try:
-            online_array = json.loads("["+ user_guess_string +"]")
+            # 安全的方式：使用 json.dumps 来正确转义字符串
+            online_array = json.loads("[" + json.dumps(user_guess_string) + "]")
         except Exception as exc:
-            online_array = []
+            # 如果失败，直接构建数组
+            online_array = [user_guess_string] if user_guess_string else []
 
     return local_array + online_array
 
@@ -1818,7 +1815,7 @@ def get_answer_list_from_question_string(registrationsNewApp_div, captcha_text_d
         #print("is_use_quota_message:" , is_use_quota_message)
         if is_use_quota_message:
             inferred_answer_string = find_between(captcha_text_div_text, "【", "】")
-            inferred_answer_string = inferred_answer_string.strip()
+            inferred_answer_string = inferred_answer_string
             #print("find captcha text:" , inferred_answer_string)
 
     # parse '演出日期'
@@ -1990,3 +1987,51 @@ def launch_maxbot(script_name="chrome_tixcraft", filename="", homepage="", kktix
                 msg=str(exc)
                 print("exeption:", msg)
                 pass
+
+def parse_keyword_string_to_array(keyword_string):
+    """
+    將關鍵字字符串正確解析為數組
+    支持以下格式:
+    - "keyword"  -> ["keyword"]
+    - "keyword1","keyword2"  -> ["keyword1", "keyword2"]
+    - ["keyword1","keyword2"]  -> ["keyword1", "keyword2"]
+    """
+    keyword_array = []
+    
+    if not keyword_string or len(keyword_string.strip()) == 0:
+        return keyword_array
+    
+    keyword_string = keyword_string.strip()
+    
+    try:
+        # 情況1: 如果字符串已經是完整的JSON數組格式
+        if keyword_string.startswith('[') and keyword_string.endswith(']'):
+            keyword_array = json.loads(keyword_string)
+        else:
+            # 情況2: 如果字符串包含逗號分隔的多個關鍵字
+            # 例如: "2025/07/27 (日) 09:00","2025/07/26 (六) 09:00"
+            if '","' in keyword_string or keyword_string.count('"') >= 2:
+                # 將字符串包裝成JSON數組格式
+                if not keyword_string.startswith('['):
+                    keyword_string = '[' + keyword_string + ']'
+                keyword_array = json.loads(keyword_string)
+            else:
+                # 情況3: 單個關鍵字，可能有或沒有引號
+                if keyword_string.startswith('"') and keyword_string.endswith('"'):
+                    keyword_array = [keyword_string[1:-1]]  # 移除首尾引號
+                else:
+                    keyword_array = [keyword_string]
+                    
+    except json.JSONDecodeError as exc:
+        # JSON 解析失敗，嘗試其他方法
+        try:
+            # 嘗試使用 json.dumps 進行安全轉義（原始方法的備用）
+            keyword_array = json.loads("[" + json.dumps(keyword_string) + "]")
+        except Exception as exc2:
+            # 如果都失敗，直接構建數組
+            keyword_array = [keyword_string] if keyword_string else []
+    except Exception as exc:
+        # 其他異常，使用原始字符串
+        keyword_array = [keyword_string] if keyword_string else []
+    
+    return keyword_array

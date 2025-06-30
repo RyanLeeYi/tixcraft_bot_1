@@ -39,10 +39,24 @@ import util
 from NonBrowser import NonBrowser
 
 try:
-    import ddddocr
+    import undetected_chromedriver as uc
 except Exception as exc:
     print(exc)
     pass
+
+try:
+    import ddddocr
+    # 修復 Pillow 兼容性問題（新版 Pillow 移除了 ANTIALIAS）
+    try:
+        from PIL import Image
+        if not hasattr(Image, 'ANTIALIAS'):
+            Image.ANTIALIAS = Image.LANCZOS
+            print("Fixed Pillow ANTIALIAS compatibility for ddddocr")
+    except Exception:
+        pass
+except Exception as exc:
+    print(exc)
+    ddddocr = None
 
 CONST_APP_VERSION = "MaxBot (2024.04.10)"
 
@@ -149,7 +163,7 @@ def get_config_dict(args):
     config_dict = None
     if os.path.isfile(config_filepath):
         # start to overwrite config settings.
-        with open(config_filepath) as json_data:
+        with open(config_filepath, 'r', encoding='utf-8') as json_data:
             config_dict = json.load(json_data)
 
             if not args.headless is None:
@@ -216,7 +230,7 @@ def write_last_url_to_file(url):
 
 def read_last_url_from_file():
     ret = ""
-    with open(CONST_MAXBOT_LAST_URL_FILE, "r") as text_file:
+    with open(CONST_MAXBOT_LAST_URL_FILE, "r", encoding='utf-8') as text_file:
         ret = text_file.readline()
     return ret
 
@@ -984,7 +998,6 @@ def tixcraft_redirect(driver, url):
 
 def tixcraft_date_auto_select(driver, url, config_dict, domain_name):
     show_debug_message = True    # debug.
-    show_debug_message = False   # online
 
     if config_dict["advanced"]["verbose"]:
         show_debug_message = True
@@ -2031,7 +2044,6 @@ def tixcraft_reload_captcha(driver, domain_name):
 
 def tixcraft_get_ocr_answer(driver, ocr, ocr_captcha_image_source, Captcha_Browser, domain_name):
     show_debug_message = True       # debug.
-    show_debug_message = False      # online
 
     ocr_answer = None
     if not ocr is None:
@@ -2083,14 +2095,21 @@ def tixcraft_get_ocr_answer(driver, ocr, ocr_captcha_image_source, Captcha_Brows
             try:
                 ocr_answer = ocr.classification(img_base64)
             except Exception as exc:
-                pass
+                print(f"OCR classification failed: {exc}")
+                if "ANTIALIAS" in str(exc):
+                    print("Error: Pillow version compatibility issue.")
+                    print("Solution: pip install 'Pillow==9.5.0'")
+                elif "PIL" in str(exc):
+                    print("Error: Pillow library issue detected.")
+                    print("Please check your Pillow installation.")
+                # 繼續執行，不中斷程序
+                ocr_answer = None
 
     return ocr_answer
 
 #PS: credit to LinShihJhang's share
 def tixcraft_auto_ocr(driver, ocr, away_from_keyboard_enable, previous_answer, Captcha_Browser, ocr_captcha_image_source, domain_name):
     show_debug_message = True       # debug.
-    show_debug_message = False      # online
 
     is_need_redo_ocr = False
     is_form_sumbited = False
@@ -10888,12 +10907,28 @@ def main(args):
     Captcha_Browser = None
     try:
         if config_dict["ocr_captcha"]["enable"]:
-            ocr = ddddocr.DdddOcr(show_ad=False, beta=config_dict["ocr_captcha"]["beta"])
-            Captcha_Browser = NonBrowser()
-            if len(config_dict["advanced"]["tixcraft_sid"]) > 1:
-                set_non_browser_cookies(driver, config_dict["homepage"], Captcha_Browser)
+            if ddddocr is None:
+                print("ddddocr module is not available. OCR captcha solving will be disabled.")
+                config_dict["ocr_captcha"]["enable"] = False
+            else:
+                # 嘗試不同的初始化參數來兼容不同版本的ddddocr
+                try:
+                    ocr = ddddocr.DdddOcr(show_ad=False, beta=config_dict["ocr_captcha"]["beta"])
+                except TypeError:
+                    # 如果show_ad參數不支援，嘗試只用beta參數
+                    try:
+                        ocr = ddddocr.DdddOcr(beta=config_dict["ocr_captcha"]["beta"])
+                    except TypeError:
+                        # 如果beta參數也不支援，使用預設參數
+                        ocr = ddddocr.DdddOcr()
+                        print("使用預設OCR參數初始化")
+                Captcha_Browser = NonBrowser()
+                if len(config_dict["advanced"]["tixcraft_sid"]) > 1:
+                    set_non_browser_cookies(driver, config_dict["homepage"], Captcha_Browser)
     except Exception as exc:
-        print(exc)
+        print(f"Error initializing OCR: {exc}")
+        print("OCR captcha solving will be disabled.")
+        config_dict["ocr_captcha"]["enable"] = False
         pass
 
     maxbot_last_reset_time = time.time()
@@ -11069,7 +11104,19 @@ def test_captcha_model():
     answer_list = util.get_answer_list_from_question_string(None, captcha_text_div_text)
     print("answer_list:", answer_list)
 
-    ocr = ddddocr.DdddOcr(show_ad=False, beta=True)
+    if ddddocr is None:
+        print("ddddocr module is not available. Cannot test captcha model.")
+        return
+    
+    # 嘗試不同的初始化參數來兼容不同版本的ddddocr
+    try:
+        ocr = ddddocr.DdddOcr(show_ad=False, beta=True)
+    except TypeError:
+        try:
+            ocr = ddddocr.DdddOcr(beta=True)
+        except TypeError:
+            ocr = ddddocr.DdddOcr()
+            print("使用預設OCR參數初始化")
     image_file = 'captcha-xxxx.png'
     if os.path.exists(image_file):
         with open(image_file, 'rb') as f:

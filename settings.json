@@ -1,8 +1,8 @@
 {
-    "homepage": "https://tixcraft.com",
-    "browser": "chrome",
+    "homepage": "https://tixcraft.com/activity/detail/25_sting",
+    "browser": "edge",
     "language": "\u7e41\u9ad4\u4e2d\u6587",
-    "ticket_number": 2,
+    "ticket_number": 1,
     "ocr_captcha": {
         "enable": true,
         "beta": true,
@@ -12,13 +12,13 @@
     "webdriver_type": "undetected_chromedriver",
     "date_auto_select": {
         "enable": true,
-        "date_keyword": "",
+        "date_keyword": "\"2025/09/27 (\u516d) 19:30\",\"2025/07/26 (\u516d) 09:00\"",
         "mode": "random"
     },
     "area_auto_select": {
         "enable": true,
         "mode": "random",
-        "area_keyword": ""
+        "area_keyword": "\"\u7279B\u5340 6800\",\"\u7279A\u5340 6800\""
     },
     "keyword_exclude": "\"\u8f2a\u6905\",\"\u8eab\u969c\",\"\u8eab\u5fc3 \u969c\u7919\",\"Restricted View\",\"\u71c8\u67f1\u906e\u853d\",\"\u8996\u7dda\u4e0d\u5b8c\u6574\"",
     "kktix": {
@@ -35,9 +35,9 @@
             "order": true,
             "filename": "ding-dong.wav"
         },
-        "tixcraft_sid": "",
+        "tixcraft_sid": "6u9khnl0fgvgsfqar2ck3167a2",
         "ibonqware": "",
-        "facebook_account": "",
+        "facebook_account": "12345",
         "kktix_account": "",
         "fami_account": "",
         "cityline_account": "",
@@ -67,7 +67,7 @@
         "ticket_password_plaintext": "",
         "udn_password_plaintext": "",
         "ticketplus_password_plaintext": "",
-        "chrome_extension": true,
+        "chrome_extension": false,
         "disable_adjacent_seat": false,
         "hide_some_image": false,
         "block_facebook_network": false,
